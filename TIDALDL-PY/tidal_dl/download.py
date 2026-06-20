@@ -14,6 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 from decryption import *
 from printf import *
 from tidal import *
+import os
 
 
 def __isSkip__(finalpath, url):
@@ -137,11 +138,27 @@ def downloadVideo(video: Video, album: Album = None, playlist: Playlist = None):
         Printf.err(f"DL Video[{video.title}] failed.{str(e)}")
         return False, str(e)
 
+def __getExistingTrackPath__(track: Track, album=None, playlist=None):
+    basepath = getTrackPathNoExt(track, album, playlist)
+    for ext in ['.flac', '.m4a', '.mp4', '.mp3']:
+        fullpath = basepath + ext
+        if os.path.isfile(fullpath) and aigpy.file.getSize(fullpath) > 0:
+            return fullpath
+    return None
 
 def downloadTrack(track: Track, album=None, playlist=None, userProgress=None, partSize=1048576):
     try:
+        # local existence check BEFORE any stream/API call
+        existingPath = __getExistingTrackPath__(track, album, playlist)
+        if existingPath is not None:
+            Printf.success(aigpy.path.getFileName(existingPath) + " (skip:already exists!)")
+            return True, ''
+
         stream = TIDAL_API.getStreamUrl(track.id, SETTINGS.audioQuality)
         path = getTrackPath(track, stream, album, playlist)
+
+        parent = os.path.dirname(path)
+        aigpy.path.mkdirs(parent)
 
         if SETTINGS.showTrackInfo and not SETTINGS.multiThread:
             Printf.track(track, stream)
@@ -149,7 +166,7 @@ def downloadTrack(track: Track, album=None, playlist=None, userProgress=None, pa
         if userProgress is not None:
             userProgress.updateStream(stream)
 
-        # check exist
+        # secondary safeguard
         if __isSkip__(path, stream.url):
             Printf.success(aigpy.path.getFileName(path) + " (skip:already exists!)")
             return True, ''
