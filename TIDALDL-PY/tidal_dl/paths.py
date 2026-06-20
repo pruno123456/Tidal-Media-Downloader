@@ -94,53 +94,25 @@ def getPlaylistPath(playlist):
     return f"{SETTINGS.downloadPath}/{retpath}"
 
 
-def getTrackPath(track, stream, album=None, playlist=None):
-    base = './'
-    number = str(track.trackNumber).rjust(2, '0')
-    if album is not None:
-        base = getAlbumPath(album)
-        if album.numberOfVolumes > 1:
-            base += f'/CD{str(track.volumeNumber)}'
+def getTaggedCollectionBasePath(track):
+    artist = __fixPath__(track.artist.name) if track.artist is not None else __fixPath__(TIDAL_API.getArtistsName(track.artists))
 
-    if playlist is not None and SETTINGS.usePlaylistFolder:
-        base = getPlaylistPath(playlist)
-        number = str(track.trackNumberOnPlaylist).rjust(2, '0')
-
-    # artist
-    artists = __fixPath__(TIDAL_API.getArtistsName(track.artists))
-    artist = __fixPath__(track.artist.name) if track.artist is not None else ""
-
-    # title
     title = __fixPath__(track.title)
     if not aigpy.string.isNull(track.version):
         title += f' ({__fixPath__(track.version)})'
 
-    # explicit
-    explicit = "(Explicit)" if track.explicit else ''
+    album = __fixPath__(track.album.title) if track.album is not None else ''
 
-    # album and addyear
-    albumName = __fixPath__(album.title) if album is not None else ''
-    year = __getYear__(album.releaseDate) if album is not None else ''
+    return f"/Users/oli/Music/Tagged Collection/{artist}/{title} - {album}"
 
-    # extension
+
+def getTrackPathNoExt(track, album=None, playlist=None):
+    return getTaggedCollectionBasePath(track)
+
+
+def getTrackPath(track, stream, album=None, playlist=None):
     extension = __getExtension__(stream)
-
-    retpath = SETTINGS.trackFileFormat
-    if retpath is None or len(retpath) <= 0:
-        retpath = SETTINGS.getDefaultTrackFileFormat()
-    retpath = retpath.replace(R"{TrackNumber}", number)
-    retpath = retpath.replace(R"{ArtistName}", artist)
-    retpath = retpath.replace(R"{ArtistsName}", artists)
-    retpath = retpath.replace(R"{TrackTitle}", title)
-    retpath = retpath.replace(R"{ExplicitFlag}", explicit)
-    retpath = retpath.replace(R"{AlbumYear}", year)
-    retpath = retpath.replace(R"{AlbumTitle}", albumName)
-    retpath = retpath.replace(R"{AudioQuality}", track.audioQuality)
-    retpath = retpath.replace(R"{DurationSeconds}", str(track.duration))
-    retpath = retpath.replace(R"{Duration}", __getDurationStr__(track.duration))
-    retpath = retpath.replace(R"{TrackID}", str(track.id))
-    retpath = retpath.strip()
-    return f"{base}/{retpath}{extension}"
+    return getTaggedCollectionBasePath(track) + extension
 
 
 def getVideoPath(video, album=None, playlist=None):
